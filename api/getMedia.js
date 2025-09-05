@@ -2,7 +2,10 @@ const play = require('play-dl');
 
 // This is a Vercel serverless function
 module.exports = async (req, res) => {
-    // Force a refresh of the internal clients to avoid 410 errors from YouTube
+    // Set a common browser User-Agent and authorize to bypass bot detection and 410 errors
+    await play.setToken({
+        useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
+    });
     await play.authorization();
 
     // Set CORS headers to allow requests from any origin
@@ -69,5 +72,4 @@ module.exports = async (req, res) => {
         res.status(500).json({ success: false, message: error.message || 'An internal server error occurred.' });
     }
 };
-
 
