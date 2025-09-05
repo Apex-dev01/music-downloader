@@ -1,0 +1,14 @@
+{
+  "name": "universal-media-downloader",
+  "version": "1.0.0",
+  "description": "A web app to download media from YouTube and SoundCloud, deployable on Vercel.",
+  "main": "index.html",
+  "scripts": {
+    "start": "echo 'No start script needed, this is a serverless project.'"
+  },
+  "dependencies": {
+    "soundcloud-downloader": "^1.0.0",
+    "ytdl-core": "^4.11.5",
+    "node-fetch": "^2.7.0"
+  }
+}

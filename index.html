@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Media Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .loader {
+            border-top-color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .modal-bg {
+            background-color: rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl mx-auto">
+        <!-- Main Form View -->
+        <div id="form-view">
+            <div class="bg-gray-800 rounded-lg shadow-xl p-6 md:p-8 border border-gray-700">
+                <h1 class="text-3xl font-bold text-center mb-2">Universal Media Downloader</h1>
+                <p class="text-center text-gray-400 mb-6">Enter a YouTube or SoundCloud URL to begin.</p>
+                <form id="media-form" class="space-y-4">
+                    <input id="url-input" type="url" placeholder="https://www.youtube.com/watch?v=..." class="w-full p-4 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg" required>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-300">Convert</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Loading View -->
+        <div id="loading-view" class="hidden text-center">
+            <div class="bg-gray-800 rounded-lg shadow-xl p-8 border border-gray-700">
+                <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-500 h-24 w-24 mx-auto mb-4"></div>
+                <h2 class="text-xl font-semibold">Processing your request...</h2>
+                <p class="text-gray-400">Please wait while we fetch the media details.</p>
+            </div>
+        </div>
+
+        <!-- Error View -->
+        <div id="error-view" class="hidden text-center">
+             <div class="bg-gray-800 rounded-lg shadow-xl p-8 border border-gray-700">
+                <h2 class="text-2xl font-bold text-red-500 mb-4">An Error Occurred</h2>
+                <p id="error-message" class="text-gray-300 mb-6">Could not process the URL.</p>
+                <button onclick="showView('form-view')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300">Try Again</button>
+            </div>
+        </div>
+        
+        <!-- Results View -->
+        <div id="results-view" class="hidden">
+            <div class="bg-gray-800 rounded-lg shadow-xl p-6 md:p-8 border border-gray-700">
+                <div class="flex flex-col md:flex-row gap-6 mb-6">
+                    <img id="thumbnail" src="https://placehold.co/480x360/1a202c/4a5568?text=Thumbnail" alt="Media Thumbnail" class="w-full md:w-48 h-auto rounded-lg object-cover">
+                    <div class="flex-grow">
+                        <h2 id="media-title" class="text-2xl font-bold mb-2">Media Title</h2>
+                        <p id="media-source" class="text-gray-400"></p>
+                    </div>
+                </div>
+                <div id="media-output" class="space-y-4"></div>
+                <button onclick="showView('form-view')" class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300">Convert Another</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Equalizer Modal -->
+    <div id="equalizer-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-bg hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-700">
+            <h3 class="text-xl font-bold mb-4">Audio Equalizer & Player</h3>
+            <audio id="audio-player" class="w-full mb-4" controls></audio>
+            
+            <div class="space-y-4">
+                <div>
+                    <label for="bass-boost" class="block mb-2 text-sm font-medium text-gray-300">Bass Boost</label>
+                    <input id="bass-boost" type="range" min="-10" max="10" value="0" step="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div>
+                    <label for="eq-presets" class="block mb-2 text-sm font-medium text-gray-300">EQ Presets</label>
+                    <select id="eq-presets" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <option value="none">None</option>
+                        <option value="bassBoost">Bass Boost</option>
+                        <option value="lowBass">Low Bass</option>
+                        <option value="maxBass">Max Bass</option>
+                        <option value="bassAndTreble">Bass & Treble</option>
+                        <option value="vocalBoost">Vocal Boost</option>
+                        <option value="clarity">Clarity</option>
+                        <option value="pop">Pop</option>
+                        <option value="rock">Rock</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-6 flex flex-col sm:flex-row gap-3">
+                <button id="download-processed" class="w-full sm:w-1/2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                    <span id="download-text">Download WAV</span>
+                    <span id="download-spinner" class="hidden">Processing...</span>
+                </button>
+                <button onclick="closeModal()" class="w-full sm:w-1/2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const form = document.getElementById('media-form');
+        const urlInput = document.getElementById('url-input');
+        const views = {
+            form: document.getElementById('form-view'),
+            loading: document.getElementById('loading-view'),
+            error: document.getElementById('error-view'),
+            results: document.getElementById('results-view'),
+        };
+        const errorMessage = document.getElementById('error-message');
+        const thumbnail = document.getElementById('thumbnail');
+        const mediaTitle = document.getElementById('media-title');
+        const mediaSource = document.getElementById('media-source');
+        const mediaOutput = document.getElementById('media-output');
+        const modal = document.getElementById('equalizer-modal');
+        const audioPlayer = document.getElementById('audio-player');
+        const bassBoostSlider = document.getElementById('bass-boost');
+        const presetsSelect = document.getElementById('eq-presets');
+        const downloadProcessedBtn = document.getElementById('download-processed');
+
+        // --- Web Audio API State ---
+        let audioContext, sourceNode, bassFilter, eqFilters = [], audioBuffer, originalAudioUrl;
+        
+        const eqPresets = {
+            none:            [0, 0, 0, 0, 0, 0, 0],
+            bassBoost:       [6, 4, 2, 0, 0, 0, 0],
+            lowBass:         [8, 6, 4, 0, 0, 0, 0],
+            maxBass:         [10, 8, 6, 2, 0, 0, 0],
+            bassAndTreble:   [4, 2, 0, 0, 2, 4, 6],
+            vocalBoost:      [0, 0, 2, 4, 4, 2, 0],
+            clarity:         [0, 0, 0, 2, 4, 6, 8],
+            pop:             [-1, 2, 3, 3, 2, -1, -2],
+            rock:            [4, 2, -2, -3, -1, 3, 5],
+        };
+
+        // --- Core Logic ---
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = urlInput.value.trim();
+            if (!url) return;
+
+            showView('loading');
+
+            try {
+                const response = await fetch(`/api/getMedia?url=${encodeURIComponent(url)}`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to fetch media data.');
+                }
+                const data = await response.json();
+                displayResults(data);
+                showView('results');
+            } catch (error) {
+                console.error(error);
+                errorMessage.textContent = error.message;
+                showView('error');
+            }
+        });
+
+        // --- UI Functions ---
+        function showView(viewName) {
+            Object.values(views).forEach(view => view.classList.add('hidden'));
+            if (views[viewName]) {
+                views[viewName].classList.remove('hidden');
+                if(viewName === 'form-view') {
+                    urlInput.value = '';
+                }
+            }
+        }
+
+        function displayResults(data) {
+            thumbnail.src = data.thumbnail;
+            mediaTitle.textContent = data.title;
+            mediaSource.textContent = `Source: ${data.source}`;
+            mediaOutput.innerHTML = ''; // Clear previous results
+
+            if (data.source === 'YouTube') {
+                const videoFormats = data.formats.filter(f => f.hasVideo && f.hasAudio && f.container === 'mp4');
+                const audioFormats = data.formats.filter(f => !f.hasVideo && f.hasAudio);
+                
+                if (videoFormats.length > 0) mediaOutput.appendChild(createFormatSection('Video Formats', videoFormats));
+                if (audioFormats.length > 0) mediaOutput.appendChild(createFormatSection('Audio Only', audioFormats));
+
+            } else if (data.source === 'SoundCloud') {
+                const button = document.createElement('button');
+                button.textContent = 'Open Equalizer';
+                button.className = 'w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300';
+                button.onclick = () => openEqualizer(data.streamUrl, data.title);
+                mediaOutput.appendChild(button);
+            }
+        }
+
+        function createFormatSection(title, formats) {
+            const section = document.createElement('div');
+            const heading = document.createElement('h3');
+            heading.className = 'text-xl font-semibold mb-3';
+            heading.textContent = title;
+            section.appendChild(heading);
+
+            const list = document.createElement('div');
+            list.className = 'space-y-3';
+            formats.forEach(format => {
+                const item = document.createElement('div');
+                item.className = 'bg-gray-700 p-4 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-3';
+                const size = format.contentLength ? `${(format.contentLength / 1024 / 1024).toFixed(2)} MB` : 'N/A';
+                const qualityLabel = format.qualityLabel || `${Math.floor(format.audioBitrate / 1000)}kbps`;
+                const container = format.container || format.mimeType.split('/')[1].split(';')[0];
+                
+                item.innerHTML = `
+                    <div class="text-center sm:text-left">
+                        <p class="font-semibold">${qualityLabel}</p>
+                        <p class="text-sm text-gray-400">${container.toUpperCase()} - ${size}</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <a href="${format.url}" target="_blank" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors duration-300">Play in Browser</a>
+                        <a href="${format.url}" download="${mediaTitle.textContent.replace(/[^\w\s]/gi, '')}.${container}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors duration-300">Download</a>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            section.appendChild(list);
+            return section;
+        }
+
+        // --- Equalizer Logic ---
+        async function openEqualizer(streamUrl, title) {
+            originalAudioUrl = streamUrl;
+            modal.classList.remove('hidden');
+            audioPlayer.src = `/api/proxy?url=${encodeURIComponent(streamUrl)}`;
+            
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                // Fetch audio data for processing
+                const response = await fetch(audioPlayer.src);
+                const arrayBuffer = await response.arrayBuffer();
+                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+                setupAudioNodes();
+                connectAudioNodes();
+            } catch (error) {
+                console.error('Error setting up audio context:', error);
+                errorMessage.textContent = 'Could not load audio for equalizer.';
+                showView('error');
+                closeModal();
+            }
+        }
+        
+        function setupAudioNodes() {
+            // Bass boost filter (lowshelf)
+            bassFilter = audioContext.createBiquadFilter();
+            bassFilter.type = 'lowshelf';
+            bassFilter.frequency.value = 250; //Hz
+
+            // Multi-band EQ filters
+            const frequencies = [60, 170, 310, 600, 1000, 3000, 6000];
+            eqFilters = frequencies.map(freq => {
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'peaking';
+                filter.frequency.value = freq;
+                filter.Q.value = 1;
+                return filter;
+            });
+        }
+        
+        function connectAudioNodes() {
+            if (sourceNode) {
+                sourceNode.disconnect();
+            }
+            // The source for the LIVE player comes from the <audio> element
+            sourceNode = audioContext.createMediaElementSource(audioPlayer);
+            
+            const chain = [sourceNode, bassFilter, ...eqFilters, audioContext.destination];
+            for (let i = 0; i < chain.length - 1; i++) {
+                chain[i].connect(chain[i+1]);
+            }
+        }
+
+        function applyEqSettings() {
+            // Apply bass boost slider
+            bassFilter.gain.value = parseFloat(bassBoostSlider.value);
+
+            // Apply presets
+            const presetGains = eqPresets[presetsSelect.value] || eqPresets.none;
+            eqFilters.forEach((filter, index) => {
+                filter.gain.value = presetGains[index];
+            });
+        }
+        
+        bassBoostSlider.addEventListener('input', applyEqSettings);
+        presetsSelect.addEventListener('change', applyEqSettings);
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            audioPlayer.pause();
+            audioPlayer.src = '';
+            // Reset UI
+            bassBoostSlider.value = 0;
+            presetsSelect.value = 'none';
+        }
+
+        // --- Offline Audio Processing & Download ---
+        downloadProcessedBtn.addEventListener('click', async () => {
+            if (!audioBuffer) return;
+
+            const buttonText = document.getElementById('download-text');
+            const spinner = document.getElementById('download-spinner');
+
+            buttonText.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            downloadProcessedBtn.disabled = true;
+
+            try {
+                const offlineContext = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
+                
+                const offlineSource = offlineContext.createBufferSource();
+                offlineSource.buffer = audioBuffer;
+
+                const offlineBassFilter = offlineContext.createBiquadFilter();
+                offlineBassFilter.type = 'lowshelf';
+                offlineBassFilter.frequency.value = bassFilter.frequency.value;
+                offlineBassFilter.gain.value = parseFloat(bassBoostSlider.value);
+
+                const offlineEqFilters = eqFilters.map(f => {
+                    const filter = offlineContext.createBiquadFilter();
+                    filter.type = f.type;
+                    filter.frequency.value = f.frequency.value;
+                    filter.Q.value = f.Q.value;
+                    filter.gain.value = f.gain.value;
+                    return filter;
+                });
+                
+                const chain = [offlineSource, offlineBassFilter, ...offlineEqFilters, offlineContext.destination];
+                for(let i = 0; i < chain.length - 1; i++) {
+                    chain[i].connect(chain[i+1]);
+                }
+                
+                offlineSource.start(0);
+
+                const renderedBuffer = await offlineContext.startRendering();
+                const wavBlob = bufferToWave(renderedBuffer);
+                
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(wavBlob);
+                a.download = `${mediaTitle.textContent.replace(/[^\w\s]/gi, '')}_processed.wav`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+            } catch(e) {
+                console.error("Failed to process audio:", e);
+                alert("An error occurred during audio processing.");
+            } finally {
+                buttonText.classList.remove('hidden');
+                spinner.classList.add('hidden');
+                downloadProcessedBtn.disabled = false;
+            }
+        });
+
+        // --- AudioBuffer to WAV conversion utility ---
+        function bufferToWave(abuffer) {
+            let numOfChan = abuffer.numberOfChannels,
+                len = abuffer.length * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(len),
+                view = new DataView(buffer),
+                channels = [],
+                i, sample,
+                offset = 0,
+                pos = 0;
+
+            // write WAV header
+            setUint32(0x46464952); // "RIFF"
+            setUint32(len - 8); // file length - 8
+            setUint32(0x45564157); // "WAVE"
+
+            setUint32(0x20746d66); // "fmt " chunk
+            setUint32(16); // length = 16
+            setUint16(1); // PCM (uncompressed)
+            setUint16(numOfChan);
+            setUint32(abuffer.sampleRate);
+            setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+            setUint16(numOfChan * 2); // block-align
+            setUint16(16); // 16-bit
+            
+            setUint32(0x61746164); // "data" - chunk
+            setUint32(len - pos - 4); // chunk length
+
+            function setUint16(data) {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            }
+            function setUint32(data) {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            }
+
+            // write interleaved data
+            for (i = 0; i < abuffer.numberOfChannels; i++)
+                channels.push(abuffer.getChannelData(i));
+
+            while (pos < len) {
+                for (i = 0; i < numOfChan; i++) { 
+                    sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
+                    view.setInt16(pos, sample, true);
+                    pos += 2;
+                }
+                offset++;
+            }
+            return new Blob([view], { type: 'audio/wav' });
+        }
+    </script>
+</body>
+</html>
