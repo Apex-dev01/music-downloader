@@ -22,14 +22,14 @@ module.exports = async (req, res) => {
 
         if (sourceType === 'yt_video') {
             // --- Process YouTube URL ---
-            // Set User-Agent and a consent cookie to bypass bot detection
+            // Set User-Agent and a consent cookie inside the YouTube block to avoid conflicts
             await play.setToken({
                 youtube: {
-                    cookie: 'CONSENT=YES+cb.20210328-17-p0.en+FX+478'
+                    // Using a generic consent cookie
+                    cookie: 'CONSENT=YES+;' 
                 },
-                useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
+                useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
             });
-            await play.authorization();
 
             const info = await play.video_info(url);
             const formats = info.format.map(format => ({
@@ -50,10 +50,15 @@ module.exports = async (req, res) => {
             });
         } else if (sourceType === 'so_track') {
             // --- Process SoundCloud URL ---
-            // Refresh the SoundCloud client ID to prevent auth issues
+            // Get a new client ID for SoundCloud and validate it
+            const soundCloudClientId = await play.getFreeClientID();
+            if (!soundCloudClientId) {
+                throw new Error("Failed to get a SoundCloud client ID. The service may be temporarily unavailable.");
+            }
+            // Set the token specifically for SoundCloud
             await play.setToken({
               soundcloud : {
-                client_id : await play.getFreeClientID()
+                client_id : soundCloudClientId
               }
             });
             
@@ -71,7 +76,8 @@ module.exports = async (req, res) => {
             res.status(400).json({ success: false, message: 'Invalid or unsupported URL. Please use a valid YouTube or SoundCloud URL.' });
         }
     } catch (error) {
-        console.error("Error processing URL:", error);
+        // Log the full error for better debugging on the server side
+        console.error("Full error object:", error);
         res.status(500).json({ success: false, message: error.message || 'An internal server error occurred.' });
     }
 };
