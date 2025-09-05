@@ -2,12 +2,6 @@ const play = require('play-dl');
 
 // This is a Vercel serverless function
 module.exports = async (req, res) => {
-    // Set a common browser User-Agent and authorize to bypass bot detection and 410 errors
-    await play.setToken({
-        useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
-    });
-    await play.authorization();
-
     // Set CORS headers to allow requests from any origin
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -28,6 +22,15 @@ module.exports = async (req, res) => {
 
         if (sourceType === 'yt_video') {
             // --- Process YouTube URL ---
+            // Set User-Agent and a consent cookie to bypass bot detection
+            await play.setToken({
+                youtube: {
+                    cookie: 'CONSENT=YES+cb.20210328-17-p0.en+FX+478'
+                },
+                useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
+            });
+            await play.authorization();
+
             const info = await play.video_info(url);
             const formats = info.format.map(format => ({
                 qualityLabel: format.qualityLabel,
