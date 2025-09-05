@@ -45,10 +45,8 @@ module.exports = async (req, res) => {
             // --- Process SoundCloud URL ---
             const info = await scdl.getInfo(url);
             
-            // Find the progressive MP3 stream URL
-            const progressiveStream = info.media.transcodings.find(
-                t => t.format.protocol === 'progressive' && t.format.mime_type.startsWith('audio/mpeg')
-            );
+            // Find any progressive stream URL. This is more robust as it doesn't rely on a specific mime type.
+            const progressiveStream = info.media.transcodings.find(t => t.format.protocol === 'progressive' && t.url);
 
             if (!progressiveStream) {
                 return res.status(404).json({ success: false, message: 'Could not find a downloadable stream for this SoundCloud track.' });
@@ -69,3 +67,5 @@ module.exports = async (req, res) => {
         res.status(500).json({ success: false, message: error.message || 'An internal server error occurred.' });
     }
 };
+
+
